@@ -1,13 +1,19 @@
 package com.nexamart.ai;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.nexamart.analytics.PlatformAnalyticsService;
 import com.nexamart.analytics.SellerAnalyticsService;
+import com.nexamart.analytics.dto.DisputeStatsReport;
+import com.nexamart.analytics.dto.PlatformRevenueReport;
 import com.nexamart.analytics.dto.SellerSalesSummary;
 import com.nexamart.auth.Role;
 import com.nexamart.auth.User;
 import com.nexamart.catalog.ProductService;
 import com.nexamart.catalog.dto.ProductResponse;
 import com.nexamart.common.ApiException;
+import com.nexamart.finance.FinanceAnalyticsService;
+import com.nexamart.finance.dto.CommissionReport;
+import com.nexamart.finance.dto.SellerPayoutsReport;
 import com.nexamart.order.OrderService;
 import com.nexamart.order.dto.OrderResponse;
 import org.springframework.stereotype.Component;
@@ -26,12 +32,18 @@ public class ToolFunctions {
     private final ProductService productService;
     private final OrderService orderService;
     private final SellerAnalyticsService sellerAnalyticsService;
+    private final PlatformAnalyticsService platformAnalyticsService;
+    private final FinanceAnalyticsService financeAnalyticsService;
 
     public ToolFunctions(ProductService productService, OrderService orderService,
-                          SellerAnalyticsService sellerAnalyticsService) {
+                          SellerAnalyticsService sellerAnalyticsService,
+                          PlatformAnalyticsService platformAnalyticsService,
+                          FinanceAnalyticsService financeAnalyticsService) {
         this.productService = productService;
         this.orderService = orderService;
         this.sellerAnalyticsService = sellerAnalyticsService;
+        this.platformAnalyticsService = platformAnalyticsService;
+        this.financeAnalyticsService = financeAnalyticsService;
     }
 
     /** Returns the tool definitions available to this user's role. */
@@ -76,6 +88,43 @@ public class ToolFunctions {
                     List.of()));
         }
 
+        if (role == Role.ADMIN) {
+            tools.add(tool("get_platform_revenue_report",
+                    "Get platform-wide revenue, order count, and a revenue breakdown by category, optionally within a date range (YYYY-MM-DD). Use for questions like 'total revenue by category for the last 30 days'.",
+                    Map.of(
+                            "fromDate", param("string", "Start date in YYYY-MM-DD format, omit for all time"),
+                            "toDate", param("string", "End date in YYYY-MM-DD format, omit for up to now")
+                    ),
+                    List.of()));
+
+            tools.add(tool("get_dispute_stats",
+                    "Get platform-wide dispute counts by status and which sellers had the most disputes, optionally within a date range (YYYY-MM-DD). Use for questions like 'which sellers had the most disputes'.",
+                    Map.of(
+                            "fromDate", param("string", "Start date in YYYY-MM-DD format, omit for all time"),
+                            "toDate", param("string", "End date in YYYY-MM-DD format, omit for up to now")
+                    ),
+                    List.of()));
+        }
+
+        if (role == Role.FINANCE || role == Role.ADMIN) {
+            tools.add(tool("get_commission_report",
+                    "Get platform commission earned and gross revenue, optionally within a date range (YYYY-MM-DD) and/or filtered to one category. Use for questions like 'commissions earned from electronics last quarter'.",
+                    Map.of(
+                            "fromDate", param("string", "Start date in YYYY-MM-DD format, omit for all time"),
+                            "toDate", param("string", "End date in YYYY-MM-DD format, omit for up to now"),
+                            "category", param("string", "Optional category filter, e.g. Electronics")
+                    ),
+                    List.of()));
+
+            tools.add(tool("get_seller_payouts_report",
+                    "Get gross revenue and net payout (after platform commission) per seller, optionally within a date range (YYYY-MM-DD). Use for questions like 'total seller payouts in May'.",
+                    Map.of(
+                            "fromDate", param("string", "Start date in YYYY-MM-DD format, omit for all time"),
+                            "toDate", param("string", "End date in YYYY-MM-DD format, omit for up to now")
+                    ),
+                    List.of()));
+        }
+
         return tools;
     }
 
@@ -86,6 +135,10 @@ public class ToolFunctions {
             case "list_my_products" -> listMyProducts(arguments, currentUser);
             case "get_low_stock_products" -> getLowStockProducts(arguments, currentUser);
             case "get_seller_sales_summary" -> getSellerSalesSummary(arguments, currentUser);
+            case "get_platform_revenue_report" -> getPlatformRevenueReport(arguments);
+            case "get_dispute_stats" -> getDisputeStats(arguments);
+            case "get_commission_report" -> getCommissionReport(arguments);
+            case "get_seller_payouts_report" -> getSellerPayoutsReport(arguments);
             default -> Map.of("error", "Unknown function: " + name);
         };
     }
@@ -133,6 +186,31 @@ public class ToolFunctions {
         Instant to = dateOrNull(args, "toDate");
         int topN = args.hasNonNull("topN") ? args.get("topN").asInt() : 5;
         return sellerAnalyticsService.salesSummary(currentUser.getId(), from, to, topN);
+    }
+
+    private PlatformRevenueReport getPlatformRevenueReport(JsonNode args) {
+        Instant from = dateOrNull(args, "fromDate");
+        Instant to = dateOrNull(args, "toDate");
+        return platformAnalyticsService.revenueReport(from, to);
+    }
+
+    private DisputeStatsReport getDisputeStats(JsonNode args) {
+        Instant from = dateOrNull(args, "fromDate");
+        Instant to = dateOrNull(args, "toDate");
+        return platformAnalyticsService.disputeStats(from, to);
+    }
+
+    private CommissionReport getCommissionReport(JsonNode args) {
+        Instant from = dateOrNull(args, "fromDate");
+        Instant to = dateOrNull(args, "toDate");
+        String category = textOrNull(args, "category");
+        return financeAnalyticsService.commissionReport(from, to, category);
+    }
+
+    private SellerPayoutsReport getSellerPayoutsReport(JsonNode args) {
+        Instant from = dateOrNull(args, "fromDate");
+        Instant to = dateOrNull(args, "toDate");
+        return financeAnalyticsService.sellerPayoutsReport(from, to);
     }
 
     private Map<String, Object> tool(String name, String description, Map<String, Object> properties, List<String> required) {

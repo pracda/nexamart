@@ -9,6 +9,8 @@ import Cart from "./pages/Cart";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import SellerDashboard from "./pages/SellerDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import FinanceDashboard from "./pages/FinanceDashboard";
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="/seller" element={<SellerDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/finance" element={<FinanceDashboard />} />
         </Routes>
       </main>
       <ChatWidget />

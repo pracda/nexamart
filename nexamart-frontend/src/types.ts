@@ -54,3 +54,68 @@ export interface GeneratedListing {
   seoTags: string[];
   suggestedCategory: string;
 }
+
+export interface ProductHighlight {
+  productId: number;
+  title: string;
+  pros: string[];
+  cons: string[];
+}
+
+export interface ComparisonResult {
+  summary: string;
+  recommendation: string;
+  highlights: ProductHighlight[];
+}
+
+export interface PricingAdvice {
+  recommendedMin: number;
+  recommendedMax: number;
+  justification: string;
+}
+
+export interface DisputeMessage {
+  id: number;
+  authorName: string;
+  authorRole: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface Dispute {
+  id: number;
+  orderId: number;
+  status: "OPEN" | "RESOLVED" | "REJECTED";
+  reason: string;
+  openedByName: string;
+  resolutionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messages: DisputeMessage[];
+}
+
+export interface DisputeSummary {
+  summary: string;
+  recommendedResolution: string;
+}
+
+export interface FraudFlag {
+  type: string;
+  subject: string;
+  evidence: string;
+  explanation: string;
+}
+
+export interface FraudScanResult {
+  flags: FraudFlag[];
+  scanNote: string;
+}
+
+export interface AnomalyAlert {
+  currentPeriodDescription: string;
+  currentPeriodRevenue: number;
+  previousPeriodDescription: string;
+  previousPeriodRevenue: number;
+  significant: boolean;
+  message: string;
+}

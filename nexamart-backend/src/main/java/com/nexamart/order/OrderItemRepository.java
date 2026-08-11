@@ -18,4 +18,13 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     List<OrderItem> findForSeller(@Param("sellerId") Long sellerId,
                                    @Param("from") Instant from,
                                    @Param("to") Instant to);
+
+    List<OrderItem> findByOrder_Buyer_Id(Long buyerId);
+
+    @Query("""
+            select oi from OrderItem oi
+            where (:from is null or oi.order.createdAt >= :from)
+              and (:to is null or oi.order.createdAt <= :to)
+            """)
+    List<OrderItem> findAllInRange(@Param("from") Instant from, @Param("to") Instant to);
 }

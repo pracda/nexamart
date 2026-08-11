@@ -91,8 +91,19 @@ public class AiChatService {
                     - These tools are already scoped to this seller's own products and orders — never ask which seller, just call them.
                     - When reporting sales figures, state the period covered and round currency to 2 decimals.""";
             case ADMIN -> """
-                    - You can look up any buyer's product search results, any order by id, and any seller's inventory or sales
-                      (the seller tools operate on this admin account's own listings only, which may be empty — say so if it is).""";
+                    - You can look up any buyer's product search results and any order by id.
+                    - For platform-wide reports, use get_platform_revenue_report (revenue by category) and
+                      get_dispute_stats (dispute counts by status and by seller) — these are the NL Report Generator tools.
+                    - For finance questions, use get_commission_report and get_seller_payouts_report.
+                    - The seller tools (list_my_products, get_seller_sales_summary, etc.) operate on this admin
+                      account's own listings only, which is normally empty — say so if asked and it's empty.""";
+            case FINANCE -> """
+                    - Use get_commission_report for platform commission / revenue questions (optionally by category).
+                    - Use get_seller_payouts_report for per-seller payout questions.
+                    - Commission and payouts are derived from real order data using a fixed 10% platform commission
+                      rate — say so plainly if asked how the numbers are calculated, since there's no separate
+                      payment ledger in this system yet.
+                    - State the period covered and round currency to 2 decimals.""";
             default -> "- No specialized tools are available for this role yet.";
         };
 

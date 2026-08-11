@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import type { GeneratedListing, Product } from "../types";
+import type { GeneratedListing, PricingAdvice, Product } from "../types";
 
 const emptyForm = { title: "", description: "", price: "", stockQuantity: "", category: "", imageUrl: "" };
 
@@ -17,6 +17,10 @@ export default function SellerDashboard() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [seoTags, setSeoTags] = useState<string[]>([]);
+
+  const [priceAdvice, setPriceAdvice] = useState<PricingAdvice | null>(null);
+  const [priceAdviceLoading, setPriceAdviceLoading] = useState(false);
+  const [priceAdviceError, setPriceAdviceError] = useState<string | null>(null);
 
   const load = () => {
     if (user) api.get<Product[]>("/api/seller/products", user.token).then(setProducts);
@@ -56,6 +60,27 @@ export default function SellerDashboard() {
     }
   };
 
+  const suggestPrice = async () => {
+    if (!form.title.trim() || !form.category.trim()) {
+      setPriceAdviceError("Fill in a title and category first.");
+      return;
+    }
+    setPriceAdviceError(null);
+    setPriceAdviceLoading(true);
+    try {
+      const advice = await api.post<PricingAdvice>(
+        "/api/seller/ai/pricing-advice",
+        { title: form.title, category: form.category, draftPrice: form.price ? Number(form.price) : null },
+        user.token
+      );
+      setPriceAdvice(advice);
+    } catch (err) {
+      setPriceAdviceError(err instanceof ApiError ? err.message : "Could not get pricing advice");
+    } finally {
+      setPriceAdviceLoading(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -77,6 +102,7 @@ export default function SellerDashboard() {
       setSeoTags([]);
       setQuickName("");
       setAiNotes("");
+      setPriceAdvice(null);
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not save product");
@@ -158,15 +184,29 @@ export default function SellerDashboard() {
             </label>
             <label>
               Price (USD)
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                required
-              />
+              <div className="price-row">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  required
+                />
+                <button type="button" onClick={suggestPrice} disabled={priceAdviceLoading}>
+                  {priceAdviceLoading ? "…" : "💡 Suggest price"}
+                </button>
+              </div>
             </label>
+            {priceAdviceError && <div className="form-error">{priceAdviceError}</div>}
+            {priceAdvice && (
+              <div className="price-advice">
+                <strong>
+                  ${priceAdvice.recommendedMin.toFixed(2)} – ${priceAdvice.recommendedMax.toFixed(2)}
+                </strong>
+                <p>{priceAdvice.justification}</p>
+              </div>
+            )}
             <label>
               Stock quantity
               <input

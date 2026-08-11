@@ -22,6 +22,8 @@ export default function Navbar() {
         <Link to="/">Shop</Link>
         {user?.role === "BUYER" && <Link to="/orders">My Orders</Link>}
         {(user?.role === "SELLER" || user?.role === "ADMIN") && <Link to="/seller">Seller Dashboard</Link>}
+        {user?.role === "ADMIN" && <Link to="/admin">Admin Dashboard</Link>}
+        {(user?.role === "FINANCE" || user?.role === "ADMIN") && <Link to="/finance">Finance Dashboard</Link>}
         {user?.role === "BUYER" && (
           <Link to="/cart" className="cart-link">
             Cart{itemCount > 0 ? ` (${itemCount})` : ""}

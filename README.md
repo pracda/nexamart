@@ -2,7 +2,7 @@
 
 AI-powered multi-vendor e-commerce marketplace — CS425 SWE course project (Prasiddha Paudel, 618076).
 
-This repo implements **13 of the 15 AI features** from the [NexaMart Vision Document](../NexaMart_Vision_Document_v3.docx),
+This repo implements **13 of the 15 AI features** from the [NexaMart Vision Document](docs/VISION.md),
 end-to-end against a real OpenAI backend, across a working Buyer/Seller/Admin/Finance app:
 
 - **Buyer** — NL Product Finder Chatbot, Order Tracking Chatbot, AI Recommendation Engine, AI Product Comparison
@@ -13,6 +13,15 @@ end-to-end against a real OpenAI backend, across a working Buyer/Seller/Admin/Fi
 Only the two **DevOps** features (NL System Health Query, AI Log Anomaly Explainer) are not implemented —
 they need real metrics/log infrastructure this monolith doesn't have, and are flagged as likely out of
 scope for a course project rather than faked.
+
+## Documentation index
+
+| Doc | Covers |
+|---|---|
+| [`docs/VISION.md`](docs/VISION.md) | Problem, purpose, scope, stakeholders, feature-by-feature status, assumptions, constraints |
+| [`docs/SRS.md`](docs/SRS.md) | Actors, functional & non-functional requirements, 17 use cases + use-case descriptions, use-case diagram |
+| [`docs/diagrams.md`](docs/diagrams.md) | System architecture, sequence diagrams, collaboration diagram, VOPC class diagrams |
+| `NexaMart_Vision_Document_v3.docx` / `Assignement2_ SRS.docx` (course drive) | Original Assignment 1/2 submissions — kept for the record; superseded by the two docs above where they conflict with what was actually built |
 
 ## Scope decisions vs. the vision document
 
@@ -35,6 +44,12 @@ coursework.
 | React/Next.js SSR | React + Vite (no SSR — not needed for this milestone) |
 | Persistent server-side cart | Client-side cart (localStorage), submitted as one order on checkout |
 
+## Stakeholders
+
+Buyer, Seller (SMB), Admin, and Finance are all served by a working feature in this milestone;
+DevOps is a vision-doc stakeholder not yet served (see above). Full stakeholder interests and
+the problem/purpose framing are in [`docs/VISION.md`](docs/VISION.md).
+
 ## Architecture
 
 ```
@@ -55,6 +70,8 @@ nexamart-frontend/  React 18 + TypeScript + Vite
   src/components      Navbar, floating AI chat widget
   src/context          Auth (JWT in localStorage) and cart state
 ```
+
+Full system architecture, sequence, collaboration, and VOPC diagrams: [`docs/diagrams.md`](docs/diagrams.md).
 
 ### How the AI features work
 
@@ -88,6 +105,18 @@ This is the same request → context injection → intent recognition → API ex
 generation flow described in the vision doc's NL/AI layer section, just implemented as one service
 instead of a separate microservice for now.
 
+## Technology stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Java 21, Spring Boot 3, Spring Security (JWT), Spring Data JPA, Maven |
+| Frontend | React 18, TypeScript, Vite |
+| Database | H2 (embedded, file-based, default) or PostgreSQL 16 (via Docker Compose) |
+| AI | OpenAI Chat Completions API (GPT-4o-mini) — function calling + `json_object` structured output |
+| Testing | JUnit 5, Mockito |
+| Auth | JWT (self-issued), BCrypt password hashing |
+| Containerization | Docker Compose (Postgres only, for local dev) |
+
 ## Running it
 
 ### Backend
@@ -119,8 +148,25 @@ mvn spring-boot:run
 
 Without a key, everything else works — AI endpoints return a clear error instead of a reply.
 
-To run against Postgres instead of H2: `docker compose up -d` (from the repo root), then
-`mvn spring-boot:run -Dspring-boot.run.profiles=docker`.
+### Database setup
+
+**Default (H2, zero setup):** nothing to configure — `mvn spring-boot:run` creates
+`nexamart-backend/data/nexamart.mv.db` on first run and reuses it after that. Delete that file to
+reset to a fresh seeded state.
+
+**PostgreSQL (Docker Compose):**
+
+```bash
+docker compose up -d                                         # from the repo root
+cd nexamart-backend
+mvn spring-boot:run -Dspring-boot.run.profiles=docker
+```
+
+This starts a `postgres:16-alpine` container (`nexamart-postgres`) on `localhost:5432` with a
+named volume (`nexamart-pgdata`) for persistence, using credentials from `docker-compose.yml`
+(overridable via `DB_NAME` / `DB_USER` / `DB_PASSWORD` environment variables — none are
+hardcoded or committed). The `docker` Spring profile in `application.yml` points the app at this
+Postgres instance instead of H2.
 
 **Note:** restarting the backend re-signs the JWT secret's session state — any browser tab still holding
 an old login token will start getting 403s. Log out and back in after a restart.
@@ -147,6 +193,48 @@ mvn test
 
 13 JUnit 5 + Mockito unit tests across Auth, Catalog, and Order services (normal/boundary/error cases).
 
+#### Test evidence
+
+Fresh Surefire output from a passing local run, 2026-08-26 (`nexamart-backend/target/surefire-reports/`,
+also captured live in `docs/screenshots/11-mvn-test-start.png` / `12-mvn-test-success.png`):
+
+```
+Test set: com.nexamart.auth.JwtServiceTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+
+Test set: com.nexamart.catalog.ProductServiceTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+
+Test set: com.nexamart.order.OrderServiceTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+
+Tests run: 13, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+Finished at: 2026-08-26T14:50:03-05:00
+```
+
+13/13 passing, 0 failures, 0 errors. Coverage: JWT issuing/validation/expiration (Auth),
+ownership-based authorization and search (Catalog), stock decrement + insufficient-stock
+handling (Order) — normal, boundary, and error cases per rubric criterion 9.
+
+> Re-run `mvn test` again right before the presentation itself and refresh this section if the
+> code has changed since.
+
+## Screenshots / sample outputs
+
+Real captures from the running application (`docs/screenshots/`, taken 2026-08-26):
+
+| | |
+|---|---|
+| ![Buyer chat](docs/screenshots/01-buyer-product-finder-chat.png) Buyer — NL Product Finder chat | ![Cart](docs/screenshots/02-buyer-cart.png) Buyer — cart before checkout |
+| ![Order confirmation](docs/screenshots/03-buyer-order-confirmation.png) Buyer — order confirmed | ![Order tracking](docs/screenshots/04-buyer-order-tracking.png) Buyer — AI order tracking chat |
+| ![Listing draft](docs/screenshots/05-seller-listing-assistant-draft.png) Seller — AI Listing Assistant draft | ![Listing published](docs/screenshots/06-seller-listing-published.png) Seller — listing published |
+| ![Sales chat](docs/screenshots/07-seller-sales-chat.png) Seller — inventory/sales chat | ![Dispute thread](docs/screenshots/08-admin-dispute-thread.png) Admin — dispute thread |
+| ![Dispute AI summary](docs/screenshots/09-admin-dispute-ai-summary.png) Admin — AI dispute summary | ![Fraud detector](docs/screenshots/10-admin-fraud-detector.png) Admin — AI Fraud Detector |
+| ![mvn test success](docs/screenshots/12-mvn-test-success.png) `mvn test` — 13/13 passing, `BUILD SUCCESS` | |
+
+Full list and filenames: [`docs/screenshots/README.md`](docs/screenshots/README.md).
+
 ## Known simplifications (call out in the SRS / next iteration)
 
 - No persistent server-side cart — the cart lives in the browser and becomes one order at checkout.
@@ -168,6 +256,31 @@ mvn test
 - DevOps features (NL System Health Query, AI Log Anomaly Explainer) are **not implemented** — they'd
   need real metrics/log infrastructure (Prometheus/ELK) that doesn't exist in this monolith and was
   judged out of scope for a course project rather than faked with placeholder data.
+
+Full assumptions and constraints: [`docs/VISION.md §6–7`](docs/VISION.md).
+
+## Security
+
+- Passwords are hashed with BCrypt (never stored/logged in plaintext).
+- JWTs are validated server-side for both signature and expiration (`JwtService`, `JwtAuthFilter`).
+- Authorization is enforced in Spring Security and the service layer (role checks + ownership
+  checks), not only by hiding buttons in the React UI — a direct API call from a wrong role/owner
+  is rejected server-side.
+- The signing secret is loaded from an environment variable via a gitignored `.env` file; a
+  dev-only fallback in `application.yml` exists purely so local runs don't crash if unset — no
+  real secret is committed to source. **No `.env` file is committed; see `.env.example`.**
+- Every AI tool function is scoped server-side using the authenticated user's ID from the JWT —
+  never a parameter the model supplies — so a malicious or confused model call can't read
+  another user's data.
+
+## Cloud deployment
+
+Not deployed for this submission — the app runs locally (H2/Docker Compose Postgres). If pursuing
+the optional cloud-deployment extra credit, the natural next step is: containerize
+`nexamart-backend` (a `Dockerfile` on top of the existing Maven build), deploy it plus a managed
+Postgres instance to a free-tier host (Render/Railway/Fly.io), point `nexamart-frontend`'s
+`VITE_API_BASE_URL` at the deployed backend URL, and manage `OPENAI_API_KEY`/DB credentials via
+the host's secrets manager rather than in source.
 
 ## Next milestones
 

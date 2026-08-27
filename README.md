@@ -261,26 +261,72 @@ Full assumptions and constraints: [`docs/VISION.md §6–7`](docs/VISION.md).
 
 ## Security
 
-- Passwords are hashed with BCrypt (never stored/logged in plaintext).
-- JWTs are validated server-side for both signature and expiration (`JwtService`, `JwtAuthFilter`).
+Maps directly to CS425 rubric criterion 12 (up to 2 extra-credit points — 1 for authentication +
+secure password storage, 1 for server-side authorization + input validation + secure secrets):
+
+**Authentication & password storage (extra-credit point 1)**
+- Passwords are hashed with BCrypt (never stored/logged in plaintext) via Spring Security's
+  `PasswordEncoder`.
+- JWTs are self-issued and validated server-side for both signature and expiration
+  (`JwtService`, `JwtAuthFilter`) on every authenticated request.
+
+**Server-side authorization, input validation & secrets (extra-credit point 2)**
 - Authorization is enforced in Spring Security and the service layer (role checks + ownership
   checks), not only by hiding buttons in the React UI — a direct API call from a wrong role/owner
-  is rejected server-side.
-- The signing secret is loaded from an environment variable via a gitignored `.env` file; a
-  dev-only fallback in `application.yml` exists purely so local runs don't crash if unset — no
-  real secret is committed to source. **No `.env` file is committed; see `.env.example`.**
+  is rejected server-side. Hiding a UI element does not, by itself, count as security.
+- Input validation uses Jakarta Bean Validation (`spring-boot-starter-validation`): 14 `@Valid`-
+  annotated request DTOs across auth, catalog, order, dispute, and AI endpoints reject malformed
+  input (blank/oversized fields, invalid emails, etc.) before it reaches business logic —
+  `RegisterRequest`, `LoginRequest`, `ProductRequest`, `PlaceOrderRequest`, `ChatRequest`, and
+  others.
+- The JWT signing secret and the OpenAI API key are loaded from environment variables via a
+  gitignored `.env` file; a dev-only fallback in `application.yml` exists purely so local runs
+  don't crash if unset — no real secret is committed to source. **No `.env` file is committed;
+  see `.env.example`.**
 - Every AI tool function is scoped server-side using the authenticated user's ID from the JWT —
   never a parameter the model supplies — so a malicious or confused model call can't read
   another user's data.
 
 ## Cloud deployment
 
-Not deployed for this submission — the app runs locally (H2/Docker Compose Postgres). If pursuing
-the optional cloud-deployment extra credit, the natural next step is: containerize
-`nexamart-backend` (a `Dockerfile` on top of the existing Maven build), deploy it plus a managed
-Postgres instance to a free-tier host (Render/Railway/Fly.io), point `nexamart-frontend`'s
-`VITE_API_BASE_URL` at the deployed backend URL, and manage `OPENAI_API_KEY`/DB credentials via
-the host's secrets manager rather than in source.
+Pursuing the optional cloud-deployment extra credit (up to 2 points) via AWS: **App Runner**
+(backend, deployed from a Docker image in ECR) + **RDS PostgreSQL** (database) + **Amplify
+Hosting** (frontend). This combination was chosen over a plain Elastic Beanstalk deploy because
+App Runner and RDS both support a real pause/resume and stop/start — the whole stack can be
+brought up for testing and torn back down between sessions without losing data, keeping AWS
+charges to a few cents rather than paying for several idle days before the presentation. Fully
+scripted: see [`aws/README.md`](aws/README.md) and the full runbook,
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (which also documents a no-Docker Elastic Beanstalk
+alternative for reference).
+
+**Status: live and verified end to end** — buyer/seller/admin login and the product catalog all
+confirmed working against the real deployed stack.
+
+**App (AWS Amplify Hosting) — this is the URL to present:**
+https://master.d29cdp99k1zxc4.amplifyapp.com
+
+**Backend (AWS App Runner):** https://nxkxiu5jng.us-east-1.awsapprunner.com
+(`/api/products` returns the real seeded catalog from RDS:
+https://nxkxiu5jng.us-east-1.awsapprunner.com/api/products)
+
+**Database (AWS RDS PostgreSQL):** provisioned, connected, and confirmed serving real query
+results through the backend above — not H2.
+
+**Two real bugs found and fixed during this deployment** (both only surfaced against the real
+cloud stack — local H2 + localhost testing couldn't have caught either):
+
+1. `ProductRepository.search()`'s JPQL used a `:param is null or lower(field) like lower(concat('%', :param, '%'))`
+   pattern that H2 tolerates but real PostgreSQL can't type-infer
+   (`function lower(bytea) does not exist`) — fixed by explicitly casting the string parameters
+   (`cast(:param as string)`), which works identically under both databases.
+2. `SecurityConfig`'s CORS policy only allowed `http://localhost:*`, so the deployed frontend's
+   real HTTPS origin was rejected outright by the browser (`No 'Access-Control-Allow-Origin'
+   header`) before any request reached the backend. Fixed by adding `https://*.amplifyapp.com`
+   to the allowed origin patterns alongside localhost.
+
+**Cost control:** the backend/database are paused between testing sessions via
+`aws\nexamart-down.ps1` and brought back up via `aws\nexamart-up.ps1` — see `aws/README.md` for
+the full run order. The frontend is left running continuously (negligible cost at this scale).
 
 ## Next milestones
 

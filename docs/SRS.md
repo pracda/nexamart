@@ -309,7 +309,7 @@ Backend classes for each flow are documented in `docs/diagrams.md §5`.
 
 | Category | Requirement | Status vs. Vision Doc |
 |---|---|---|
-| Security | Passwords hashed with BCrypt; JWTs validated for signature + expiration server-side; signing secret from an environment variable, never committed. | Implemented — matches vision doc's security intent, without mTLS/OWASP tooling (out of scope). |
+| Security | Passwords hashed with BCrypt; JWTs validated for signature + expiration server-side; server-side authorization (not UI-only); Jakarta Bean Validation (`@Valid`) on 14 request DTOs; signing secret and API key from environment variables, never committed. | Implemented — satisfies both CS425 rubric security extra-credit sub-points (auth+password storage; authorization+input validation+secrets); no mTLS/OWASP tooling beyond that (out of scope). |
 | Authorization | Role checks enforced in Spring Security + service-layer ownership checks, not just hidden UI. | Implemented for product management and admin routes; order-status transitions not yet role-restricted at the API layer (documented limitation). |
 | Reliability | AI endpoints fail with a structured `ApiException`/JSON error, handled by `GlobalExceptionHandler`, instead of crashing. | Implemented at the single-instance level; no SLA/uptime target claimed (no multi-instance deployment in this milestone). |
 | Testability | Core business logic (auth, catalog, order) covered by deterministic unit tests; AI output is verified manually since exact LLM wording isn't assertable. | Implemented — 13 JUnit 5 + Mockito tests, see `docs/diagrams.md` and README "Tests". |

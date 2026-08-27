@@ -55,7 +55,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:*"));
+        // Local dev (any port) plus any AWS Amplify Hosting domain (branch/preview subdomains
+        // included) so the deployed frontend can call this API. Amplify's subdomain is
+        // unpredictable ahead of time (assigned at app creation), so a scoped wildcard on the
+        // amplifyapp.com domain is used instead of hardcoding one branch's exact URL.
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "https://*.amplifyapp.com"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

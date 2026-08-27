@@ -88,8 +88,9 @@ in the system (orders, products, disputes) rather than inventing placeholder dat
 - No payment gateway, SMS, push, or email integration — checkout, order status, and disputes are
   data-only flows.
 - No dedicated cloud infrastructure budget — H2 is the zero-setup default; PostgreSQL is
-  available via local Docker Compose, not a managed cloud instance (unless the optional cloud-
-  deployment extra credit is pursued — see README).
+  available via local Docker Compose for local dev. For the optional cloud-deployment extra
+  credit, AWS free-tier resources (RDS `db.t3/t4g.micro`, Elastic Beanstalk single-instance,
+  Amplify Hosting) are used instead of a paid managed host — see `docs/DEPLOYMENT.md`.
 
 ## 8. Alternatives Considered
 
